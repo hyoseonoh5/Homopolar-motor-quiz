@@ -10,13 +10,13 @@
     --ink:#2b2b29; --muted:#7a786f; --line:#e3e0d6; --bg:#f7f5ef; --card:#fff;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  html{scrollbar-width:thin;scrollbar-color:#c2bdad #efece3}
+  html{scrollbar-width:auto;scrollbar-color:#8f897a #e7e3d8}
   body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--ink);overflow-x:hidden;overflow-y:scroll}
-  ::-webkit-scrollbar{width:12px}
-  ::-webkit-scrollbar-track{background:#efece3}
-  ::-webkit-scrollbar-thumb{background:#c2bdad;border-radius:8px;border:3px solid #efece3}
-  ::-webkit-scrollbar-thumb:hover{background:#aaa492}
-  #scrollHint{position:fixed;right:5px;top:50%;transform:translateY(-50%);z-index:90;width:6px;height:84px;border-radius:6px;background:rgba(120,116,104,.30);display:none;pointer-events:none}
+  ::-webkit-scrollbar{width:18px}
+  ::-webkit-scrollbar-track{background:#e7e3d8}
+  ::-webkit-scrollbar-thumb{background:#8f897a;border-radius:9px;border:3px solid #e7e3d8}
+  ::-webkit-scrollbar-thumb:hover{background:#6f6a5c}
+  #scrollHint{position:fixed;right:5px;top:50%;transform:translateY(-50%);z-index:90;width:9px;height:96px;border-radius:6px;background:rgba(110,106,92,.55);display:none;pointer-events:none}
   @media(max-width:880px){ #scrollHint{display:block} }
   .app{max-width:1120px;margin:0 auto;padding:14px}
   header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
@@ -107,6 +107,18 @@
   .wrong-item .fix{color:#0b8a3e;font-weight:800}
 
   .status{font-size:12px;color:var(--muted);margin-top:9px}
+  /* 화면 하단 고정 '정답 확인' 플로팅 버튼 */
+  .check-big{position:fixed;left:50%;bottom:18px;transform:translateX(-50%) translateY(20px);
+    z-index:140;display:none;opacity:0;width:min(420px,calc(100vw - 32px));padding:16px;
+    font-size:17px;font-weight:800;letter-spacing:-.3px;color:#fff;border:none;border-radius:15px;
+    background:linear-gradient(180deg,#3b82f6,#2563b8);
+    box-shadow:0 10px 30px rgba(37,99,184,.5),0 0 0 4px rgba(59,130,246,.18);
+    transition:opacity .25s ease,transform .25s ease;cursor:pointer}
+  .check-big.show{display:block;opacity:1;transform:translateX(-50%) translateY(0);
+    animation:checkPulse 1.5s ease-in-out infinite}
+  .check-big:hover{filter:brightness(1.06)}
+  @keyframes checkPulse{0%,100%{box-shadow:0 10px 30px rgba(37,99,184,.5),0 0 0 4px rgba(59,130,246,.18)}
+    50%{box-shadow:0 12px 38px rgba(37,99,184,.62),0 0 0 8px rgba(59,130,246,.10)}}
   .ghost{position:fixed;pointer-events:none;z-index:99;display:none;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.14)}
   .ghost .sw{width:20px;height:5px;border-radius:3px}
   .err{padding:20px;color:#b03030;font-size:14px;line-height:1.6}
@@ -191,6 +203,7 @@
   </div>
 </div>
 
+<button class="check-big" id="checkBig">✅ 정답 확인하기</button>
 <div id="scrollHint"></div>
 <div class="ghost" id="ghost"><span class="sw"></span><span id="ghostTxt"></span></div>
 
@@ -480,7 +493,7 @@ canvas.addEventListener("pointerdown",e=>{
 /* ===== 방향 컨트롤 ===== */
 function showRot(){
   const ctl=document.getElementById("rotctl"); ctl.classList.add("show");
-  resetRmConfirm();
+  resetRmConfirm(); refreshCheckBig();
   const grid=document.getElementById("dirgrid"); grid.innerHTML="";
   DIRS.forEach(d=>{
     const b=document.createElement("button"); b.textContent=d.label; b.dataset.key=d.key;
@@ -496,7 +509,7 @@ function showRot(){
 }
 function refreshDir(){ document.querySelectorAll("#dirgrid button").forEach(b=>b.classList.toggle("active",selected&&b.dataset.key===selected.dirKey)); }
 function closeRot(){ selected=null; hideRot(); }
-function hideRot(){ document.getElementById("rotctl").classList.remove("show"); resetRmConfirm(); }
+function hideRot(){ document.getElementById("rotctl").classList.remove("show"); resetRmConfirm(); refreshCheckBig(); }
 document.getElementById("rotClose").onclick=closeRot;
 function resetRmConfirm(){
   document.getElementById("rmConfirm").style.display="none";
@@ -514,7 +527,13 @@ document.getElementById("rmYes").onclick=()=>{
 
 function updateStatus(){
   const n=placed.length;
-  document.getElementById("status").textContent = n>=6 ? "✓ 6개 배치 완료! '정답 확인'을 눌러보세요." : ("배치된 화살표: "+n+" / 6");
+  document.getElementById("status").textContent = n>=6 ? "✓ 6개 배치 완료! 아래 '정답 확인하기'를 눌러보세요." : ("배치된 화살표: "+n+" / 6");
+  refreshCheckBig();
+}
+function refreshCheckBig(){
+  /* 6개 다 놓였고, 방향 시트(모바일 하단)가 닫혀 있을 때만 플로팅 버튼 표시 */
+  const sheetOpen = document.getElementById("rotctl").classList.contains("show") && window.innerWidth<=880;
+  document.getElementById("checkBig").classList.toggle("show", placed.length>=6 && !sheetOpen);
 }
 
 /* ===== 정답 ===== */
@@ -531,6 +550,7 @@ function expected(){
 function vKey(v){ let b=null,bd=-2; DIRS.forEach(d=>{const dot=d.v.dot(v); if(dot>bd){bd=dot;b=d.key;}}); return b; }
 
 function checkAnswer(){
+  document.getElementById("checkBig").classList.remove("show");
   const need=[["green","R"],["blue","R"],["red","R"],["green","L"],["blue","L"],["red","L"]];
   const box=document.getElementById("result");
   const miss=need.filter(([c,t])=>!placed.find(p=>p.color===c&&p.tip===t));
@@ -707,6 +727,7 @@ function animate(){ requestAnimationFrame(animate);
 document.getElementById("viewBtn").onclick=()=>{ camera.position.copy(HOME_CAM); controls.target.copy(HOME_TARGET); controls.update(); };
 document.getElementById("newBtn").onclick=newProblem;
 document.getElementById("checkBtn").onclick=checkAnswer;
+document.getElementById("checkBig").onclick=checkAnswer;
 
 buildStack(); buildWire(); resize(); newProblem(); animate();
 })();
