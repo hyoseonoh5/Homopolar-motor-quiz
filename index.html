@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>호모폴라 전동기 방향 퀴즈 (3D)</title>
+<style>
+  :root{
+    --green:#22a35a; --blue:#2563b8; --red:#d63b3b;
+    --ink:#2b2b29; --muted:#7a786f; --line:#e3e0d6; --bg:#f7f5ef; --card:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--ink);overflow-x:hidden}
+  .app{max-width:1120px;margin:0 auto;padding:14px}
+  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+  h1{font-size:18px;font-weight:600}
+  h1 small{font-weight:400;color:var(--muted);font-size:13px;margin-left:6px}
+  .top-actions{display:flex;gap:8px}
+  button{font-family:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:9px;padding:8px 14px;font-size:14px;transition:.12s}
+  button:hover{background:#f0eee6}
+  button:active{transform:scale(.97)}
+  .btn-primary{background:#eef4ff;border-color:#bcd2f5;color:#1e40af;font-weight:600}
+  .btn-primary:hover{background:#dbeafe}
+  .btn-shuffle{background:#fffaf0;border-color:#f0d9a8;color:#92600c}
+  .btn-shuffle:hover{background:#fdf0d8}
+  .btn-view{font-size:12px;padding:6px 10px}
+
+  .layout{display:grid;grid-template-columns:1fr 300px;gap:14px}
+  @media(max-width:880px){ .layout{grid-template-columns:1fr} }
+
+  .stage-wrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  #stage{display:block;width:100%;height:500px;touch-action:none}
+  @media(max-width:880px){ #stage{height:410px} }
+  .hint{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.82);backdrop-filter:blur(4px);border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:12px;color:var(--muted);max-width:235px;line-height:1.5;pointer-events:none}
+  .view-btn{position:absolute;right:12px;top:12px}
+  .rot-badge{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:rgba(43,43,41,.9);color:#fff;border-radius:20px;padding:6px 16px;font-size:13px;font-weight:600;display:none}
+
+  .side{display:flex;flex-direction:column;gap:12px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:13px 14px}
+  .panel h2{font-size:13px;font-weight:600;margin-bottom:9px}
+  .panel .sub{font-size:11.5px;color:var(--muted);line-height:1.5;margin-bottom:9px}
+
+  .legend{display:flex;gap:13px;flex-wrap:wrap;margin-top:9px}
+  .leg{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted)}
+  .ldot{width:18px;height:3px;border-radius:1px}
+
+  .chips{display:flex;flex-direction:column;gap:8px}
+  .chip{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:grab;background:#fff;user-select:none;touch-action:none;transition:.1s}
+  .chip:active{cursor:grabbing}
+  .chip.used{opacity:.34;pointer-events:none}
+  .chip .swatch{width:26px;height:6px;border-radius:3px;flex:none;position:relative}
+  .chip .swatch::after{content:"";position:absolute;right:-7px;top:-3px;border-left:8px solid currentColor;border-top:6px solid transparent;border-bottom:6px solid transparent}
+  .chip.green .swatch{background:var(--green);color:var(--green)}
+  .chip.blue .swatch{background:var(--blue);color:var(--blue)}
+  .chip.red  .swatch{background:var(--red); color:var(--red)}
+  .chip .label{font-size:13px;font-weight:500}
+  .chip .label small{display:block;font-size:10.5px;color:var(--muted);font-weight:400}
+
+  .rotctl{display:none}
+  .rotctl.show{display:block}
+  .rotctl .which{font-size:12px;margin-bottom:8px}
+  .dirgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .dirgrid button{padding:9px 4px;font-size:13px;font-weight:600}
+  .dirgrid button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .rm-wrap{margin-top:22px;padding-top:14px;border-top:1px dashed var(--line)}
+  .rm-btn{width:100%;font-size:12px;color:#b03030;border-color:#eecaca;padding:9px}
+  .rm-btn:hover{background:#fdeaea}
+  .rm-confirm{display:flex;gap:6px;margin-top:8px}
+  .rm-confirm button{flex:1;font-size:12px;padding:8px}
+  .rm-yes{background:#fdeaea;border-color:#e8b4b4;color:#a31515;font-weight:600}
+  .rm-yes:hover{background:#f9d9d9}
+
+  .result{display:none;border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.75}
+  .result.show{display:block}
+  .result.ok{background:#f0fbf4;border:1px solid #b6e6c6}
+  .result.no{background:#fdf1f1;border:1px solid #f1c9c9}
+  .result h3{font-size:14px;margin-bottom:7px}
+  .result .step{display:inline-block;background:#639922;color:#fff;border-radius:5px;font-size:11px;padding:1px 6px;margin-right:4px}
+  .result ul{margin:6px 0 0 2px;list-style:none}
+  .result li{margin:4px 0}
+  .result .mini{font-size:11px;color:var(--muted);margin-top:8px}
+  .wrong-box{margin-top:10px}
+  .wrong-title{font-size:16px;font-weight:700;color:#b8002e;margin-bottom:8px}
+  .wrong-item{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600;color:#7f1d1d;
+    background:#fdecec;border:1px solid #f1c9c9;border-radius:10px;padding:10px 12px;margin:7px 0;line-height:1.4}
+  .wrong-item .spot{font-size:13px;font-weight:700;color:#fff;background:#d63b3b;border-radius:6px;padding:2px 9px;flex:none}
+  .wrong-item .fix{color:#0b8a3e;font-weight:800}
+
+  .status{font-size:12px;color:var(--muted);margin-top:9px}
+  .ghost{position:fixed;pointer-events:none;z-index:99;display:none;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+  .ghost .sw{width:20px;height:5px;border-radius:3px}
+  .err{padding:20px;color:#b03030;font-size:14px;line-height:1.6}
+
+  /* ===== 보상 카드 ===== */
+  .reward-overlay{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;
+    background:rgba(20,16,4,.55);backdrop-filter:blur(3px)}
+  .reward-overlay.show{display:flex}
+  #fxCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .reward-card{position:relative;width:min(420px,86vw);border-radius:24px;padding:34px 28px 30px;text-align:center;
+    background:linear-gradient(155deg,#fff7df 0%,#ffe9a8 38%,#f7c948 70%,#e0a91d 100%);
+    border:3px solid #fff3c4;
+    box-shadow:0 0 0 4px rgba(224,169,29,.35),0 18px 60px rgba(120,80,0,.45),inset 0 2px 18px rgba(255,255,255,.7);
+    animation:cardPop .6s cubic-bezier(.18,1.5,.5,1) both}
+  @keyframes cardPop{0%{transform:scale(.3) rotate(-8deg);opacity:0}60%{transform:scale(1.06) rotate(2deg)}100%{transform:scale(1) rotate(0);opacity:1}}
+  .reward-card::before{content:"";position:absolute;inset:8px;border-radius:18px;border:2px dashed rgba(146,96,0,.4);pointer-events:none}
+  .reward-shine{position:absolute;top:-40%;left:-30%;width:60%;height:200%;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.85),transparent);
+    transform:skewX(-18deg);animation:shine 1.8s ease-in-out infinite;pointer-events:none}
+  @keyframes shine{0%{left:-40%}55%,100%{left:130%}}
+  .reward-thumb{font-size:78px;line-height:1;filter:drop-shadow(0 4px 10px rgba(140,90,0,.5));
+    animation:thumbBounce 1s ease infinite}
+  @keyframes thumbBounce{0%,100%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-12px) rotate(6deg)}}
+  .reward-big{margin-top:8px;font-size:30px;font-weight:800;color:#7a4d00;letter-spacing:-.5px;
+    text-shadow:0 2px 0 #fff6d8,0 4px 12px rgba(150,100,0,.4)}
+  .reward-sub{margin-top:10px;font-size:17px;font-weight:700;color:#9a6400}
+  .reward-sub b{color:#b8002e}
+  .reward-tag{display:inline-block;margin-top:16px;padding:7px 18px;border-radius:999px;font-size:14px;font-weight:700;
+    color:#7a4d00;background:rgba(255,255,255,.6);border:1.5px solid rgba(146,96,0,.35)}
+  .reward-close{margin-top:22px;border:none;background:#7a4d00;color:#ffe9a8;font-weight:700;font-size:15px;
+    padding:11px 26px;border-radius:12px;cursor:pointer;box-shadow:0 6px 18px rgba(120,80,0,.4)}
+  .reward-close:hover{background:#8c5a00}
+  @media(prefers-reduced-motion:reduce){.reward-card,.reward-thumb,.reward-shine{animation:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>호모폴라 전동기 방향 퀴즈 <small>전류·자기장·힘을 직접 표시해 보세요</small></h1>
+    <div class="top-actions">
+      <button class="btn-shuffle" id="newBtn">🔀 새 문제</button>
+      <button class="btn-primary" id="checkBtn">정답 확인</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="stage-wrap">
+      <canvas id="stage"></canvas>
+      <div class="hint">🖱️ 빈 곳 드래그 = 시점 회전.<br>보관함의 화살표를 끌어와 <b>노란 꼭짓점</b>에 놓고, 방향 버튼으로 돌리세요.</div>
+      <button class="btn-view view-btn" id="viewBtn">정면 보기</button>
+      <div class="rot-badge" id="rotBadge"></div>
+    </div>
+
+    <div class="side">
+      <div class="panel">
+        <h2>🧲 화살표 보관함</h2>
+        <div class="sub">색깔별 2개씩. 좌·우 꼭짓점에 하나씩 놓고 방향을 돌리세요.</div>
+        <div class="chips" id="chips"></div>
+        <div class="legend">
+          <div class="leg"><span class="ldot" style="background:var(--green)"></span>전류</div>
+          <div class="leg"><span class="ldot" style="background:var(--blue)"></span>자기장</div>
+          <div class="leg"><span class="ldot" style="background:var(--red)"></span>힘</div>
+        </div>
+        <div class="status" id="status">전류·자기장·힘 6개를 모두 배치하세요</div>
+      </div>
+
+      <div class="panel rotctl" id="rotctl">
+        <h2>↻ 방향 돌리기</h2>
+        <div class="which" id="whichLabel"></div>
+        <div class="dirgrid" id="dirgrid"></div>
+        <div class="rm-wrap">
+          <button class="rm-btn" id="rmBtn">🗑️ 이 화살표 빼기</button>
+          <div class="rm-confirm" id="rmConfirm" style="display:none">
+            <button class="rm-yes" id="rmYes">정말 뺄게요</button>
+            <button id="rmNo">취소</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="result" id="result"></div>
+    </div>
+  </div>
+</div>
+
+<div class="ghost" id="ghost"><span class="sw"></span><span id="ghostTxt"></span></div>
+
+<div class="reward-overlay" id="rewardOverlay">
+  <canvas id="fxCanvas"></canvas>
+  <div class="reward-card">
+    <div class="reward-shine"></div>
+    <div class="reward-thumb">👍</div>
+    <div class="reward-big">🎉 대단해요! 🎉</div>
+    <div class="reward-sub">이 문제를 맞춘 당신,<br><b>전자기력의 달인!</b></div>
+    <div class="reward-tag">⚡ 전류 × 자기장 = 힘 ⚡</div>
+    <br>
+    <button class="reward-close" id="rewardClose">계속하기 →</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+"use strict";
+if(typeof THREE==="undefined"){
+  document.querySelector(".stage-wrap").innerHTML='<div class="err">3D 라이브러리를 불러오지 못했습니다. 새로고침 해주세요.</div>';
+  return;
+}
+
+/* ===== 색·방향 ===== */
+const COLORS={green:0x22a35a,blue:0x2563b8,red:0xd63b3b};
+const KOR={green:"전류",blue:"자기장",red:"힘"};
+const DIRS=[
+  {key:"+x",label:"오른쪽 →",v:new THREE.Vector3(1,0,0)},
+  {key:"-x",label:"왼쪽 ←",  v:new THREE.Vector3(-1,0,0)},
+  {key:"+y",label:"위 ↑",    v:new THREE.Vector3(0,1,0)},
+  {key:"-y",label:"아래 ↓",  v:new THREE.Vector3(0,-1,0)},
+  {key:"+z",label:"나오기 ⊙",v:new THREE.Vector3(0,0,1)},
+  {key:"-z",label:"들어가기 ⊗",v:new THREE.Vector3(0,0,-1)},
+];
+const dirByKey=k=>DIRS.find(d=>d.key===k);
+const KEYLABEL={"+x":"오른쪽→","-x":"왼쪽←","+y":"위↑","-y":"아래↓","+z":"나오기⊙","-z":"들어가기⊗"};
+
+/* ===== Three.js ===== */
+const canvas=document.getElementById("stage");
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,1,0.1,100);
+const HOME_CAM=new THREE.Vector3(2.8,3.0,7.4), HOME_TARGET=new THREE.Vector3(0,1.75,0);
+camera.position.copy(HOME_CAM);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.target.copy(HOME_TARGET);
+controls.enableDamping=true; controls.dampingFactor=0.08;
+controls.minDistance=4; controls.maxDistance=15; controls.maxPolarAngle=Math.PI*0.93;
+
+scene.add(new THREE.AmbientLight(0xffffff,0.72));
+const kl=new THREE.DirectionalLight(0xffffff,0.85); kl.position.set(5,9,6); scene.add(kl);
+const fl=new THREE.DirectionalLight(0xffffff,0.34); fl.position.set(-6,3,-5); scene.add(fl);
+const grid=new THREE.GridHelper(15,15,0xd8d4c8,0xe6e2d6); grid.position.y=-0.001; scene.add(grid);
+
+/* ===== 라벨 ===== */
+function makeLabel(text,fg,bg,scale){
+  const c=document.createElement("canvas"); const s=128; c.width=c.height=s;
+  const x=c.getContext("2d");
+  x.fillStyle=bg; rr(x,8,8,s-16,s-16,24); x.fill();
+  x.strokeStyle="rgba(0,0,0,.1)"; x.lineWidth=3; rr(x,8,8,s-16,s-16,24); x.stroke();
+  x.fillStyle=fg; x.font="bold 70px -apple-system,sans-serif"; x.textAlign="center"; x.textBaseline="middle";
+  x.fillText(text,s/2,s/2+4);
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),depthTest:false,transparent:true}));
+  sp.scale.set(scale,scale,scale); return sp;
+}
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
+
+/* ===== 끊긴 하트 구리선 (양 끝이 네오 자석 옆을 살짝 지나침) ===== */
+let heartGroup, tipL, tipR, tipLPos, tipRPos;
+function buildWire(){
+  /* 위(cleft)는 건전지 위.
+     오른쪽 아래 끝 → 네오 자석 '앞쪽(+z)'으로 접촉해 뻗음.
+     왼쪽 아래 끝   → 네오 자석 '뒤쪽(-z)'으로 접촉해 뻗음. (앞뒤로 어긋남) */
+  const P=[
+    [ 0.05,0.55,0.34],  // 오른팔 자유 끝 — 자석 앞쪽으로 뻗음
+    [ 0.10,0.60,0.20],  // 네오 앞쪽 접촉
+    [ 0.40,0.80,0.06],
+    [ 0.88,1.10,0.0],
+    [ 1.36,1.48,0.0],
+    [ 1.66,1.96,0.0],   // ★ 오른쪽 꼭짓점
+    [ 1.55,2.66,0.0],
+    [ 1.05,3.22,0.0],
+    [ 0.55,3.50,0.0],   // 오른쪽 lobe
+    [ 0.0, 3.22,0.0],   // 위 가운데 cleft (건전지 위 단자)
+    [-0.55,3.50,0.0],   // 왼쪽 lobe
+    [-1.05,3.22,0.0],
+    [-1.55,2.66,0.0],
+    [-1.66,1.96,0.0],   // ★ 왼쪽 꼭짓점
+    [-1.36,1.48,0.0],
+    [-0.88,1.10,0.0],
+    [-0.40,0.80,-0.06],
+    [-0.10,0.60,-0.20], // 네오 뒤쪽 접촉
+    [-0.05,0.55,-0.34], // 왼팔 자유 끝 — 자석 뒤쪽으로 뻗음
+  ].map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+
+  const curve=new THREE.CatmullRomCurve3(P,false,"catmullrom",0.5);
+  const geo=new THREE.TubeGeometry(curve,260,0.05,12,false);
+  const mat=new THREE.MeshStandardMaterial({color:0xc98a2e,metalness:0.8,roughness:0.32});
+  const mesh=new THREE.Mesh(geo,mat);
+
+  heartGroup=new THREE.Group(); heartGroup.add(mesh);
+
+  let mx=-9,mn=9; const samp=curve.getPoints(260);
+  samp.forEach(p=>{ if(p.x>mx){mx=p.x;tipRPos=p.clone();} if(p.x<mn){mn=p.x;tipLPos=p.clone();} });
+  tipR=makeTip(tipRPos); tipL=makeTip(tipLPos); heartGroup.add(tipR,tipL);
+
+  /* 접촉점 강조(구리색 작은 구): 오른쪽=앞, 왼쪽=뒤 */
+  [[0.10,0.60,0.20],[-0.10,0.60,-0.20]].forEach(c=>{
+    const m=new THREE.Mesh(new THREE.SphereGeometry(0.075,16,16),
+      new THREE.MeshStandardMaterial({color:0xc98a2e,metalness:0.7,roughness:0.4}));
+    m.position.set(c[0],c[1],c[2]); heartGroup.add(m);
+  });
+
+  const lR=makeLabel("우","#7a6010","rgba(255,244,200,0.95)",0.4);
+  lR.position.copy(tipRPos).add(new THREE.Vector3(0.42,0.42,0)); heartGroup.add(lR);
+  const lL=makeLabel("좌","#7a6010","rgba(255,244,200,0.95)",0.4);
+  lL.position.copy(tipLPos).add(new THREE.Vector3(-0.42,0.42,0)); heartGroup.add(lL);
+
+  scene.add(heartGroup);
+}
+function makeTip(pos){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(0.13,24,24),
+    new THREE.MeshStandardMaterial({color:0xf2c200,emissive:0x6b5500,emissiveIntensity:0.5,metalness:0.2,roughness:0.5}));
+  m.position.copy(pos); m.userData.isTip=true; return m;
+}
+
+/* ===== 자석 + 건전지 ===== */
+let stackGroup, batteryGroup, plusLabel, minusLabel, nLabel, sLabel;
+function buildStack(){
+  stackGroup=new THREE.Group();
+
+  /* 동전 자석(넓은 원판, 회색) */
+  const coin=new THREE.Mesh(new THREE.CylinderGeometry(1.05,1.05,0.28,48),
+    new THREE.MeshStandardMaterial({color:0xb4b7bd,metalness:0.85,roughness:0.4}));
+  coin.position.y=0.14; stackGroup.add(coin);
+
+  /* 좁고 긴 네오디뮴 자석 — 은색(밝은 금속) */
+  const neo=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.8,32),
+    new THREE.MeshStandardMaterial({color:0xe2e4ea,metalness:0.98,roughness:0.16}));
+  neo.position.y=0.28+0.4; stackGroup.add(neo);
+
+  /* 건전지: 네오 위(바닥 y=1.08) */
+  batteryGroup=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(0.38,0.38,2.1,40),
+    new THREE.MeshStandardMaterial({color:0xece9df,metalness:0.3,roughness:0.55}));
+  batteryGroup.add(body);
+  const wrap=new THREE.Mesh(new THREE.CylinderGeometry(0.382,0.382,1.0,40),
+    new THREE.MeshStandardMaterial({color:0xd9a441,metalness:0.3,roughness:0.5}));
+  wrap.position.y=-0.05; batteryGroup.add(wrap);
+  const nub=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,0.1,24),
+    new THREE.MeshStandardMaterial({color:0xb8b8b8,metalness:0.8,roughness:0.3}));
+  nub.position.y=1.05; batteryGroup.add(nub);
+  batteryGroup.position.y=1.08+1.05;             // 네오 위
+  stackGroup.add(batteryGroup);
+
+  plusLabel =makeLabel("+","#c0392b","rgba(255,255,255,0.95)",0.5);
+  minusLabel=makeLabel("−","#2563b8","rgba(255,255,255,0.95)",0.5);
+  batteryGroup.add(plusLabel,minusLabel);
+
+  nLabel=makeLabel("N","#c0392b","rgba(255,236,236,0.96)",0.5);
+  sLabel=makeLabel("S","#2563b8","rgba(236,242,255,0.96)",0.5);
+  stackGroup.add(nLabel,sLabel);
+
+  scene.add(stackGroup);
+}
+
+/* ===== 문제 상태 ===== */
+let prob={plusUp:false,nUp:true};
+let placed=[], selected=null, spinning=false, spinSpeed=0;
+
+function newProblem(){
+  prob.plusUp=Math.random()<0.5;
+  prob.nUp   =Math.random()<0.5;
+
+  /* 건전지 +/- 라벨 (위/아래) */
+  const topY=1.05+0.18, botY=-1.05-0.18;
+  plusLabel.position.set(0, prob.plusUp?topY:botY, 0.46);
+  minusLabel.position.set(0, prob.plusUp?botY:topY, 0.46);
+
+  /* 자석 N/S 라벨: nUp이면 N이 위(네오쪽), S는 아래(동전쪽) */
+  nLabel.position.set(0.95, prob.nUp?0.95:0.05, 0);  // 위=네오 옆
+  sLabel.position.set(0.95, prob.nUp?0.05:0.95, 0);  // 아래=동전 옆
+
+  clearArrows();
+  spinning=false; spinSpeed=0; heartGroup.rotation.y=0;
+  document.getElementById("rotBadge").style.display="none";
+  document.getElementById("result").className="result";
+  renderChips(); updateStatus(); hideRot();
+}
+
+/* ===== 화살표 ===== */
+function makeArrow(hex,dirVec){
+  const len=0.95, g=new THREE.Group();
+  const mat=new THREE.MeshStandardMaterial({color:hex,metalness:0.1,roughness:0.55});
+  const shaft=new THREE.Mesh(new THREE.CylinderGeometry(0.038,0.038,len-0.28,16),mat); shaft.position.y=(len-0.28)/2;
+  const head=new THREE.Mesh(new THREE.ConeGeometry(0.11,0.28,20),mat); head.position.y=len-0.14;
+  g.add(shaft,head); orient(g,dirVec); g.userData.isArrow=true; return g;
+}
+function orient(g,v){ g.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),v.clone().normalize()); }
+function placeArrow(color,tip,dirKey){
+  removeArrow(color,tip);
+  const g=makeArrow(COLORS[color],dirByKey(dirKey).v);
+  g.position.copy(tip==="L"?tipLPos:tipRPos);
+  heartGroup.add(g);
+  const rec={color,tip,dirKey,group:g};
+  placed.push(rec); selectArrow(rec); renderChips(); updateStatus();
+}
+function removeArrow(color,tip){
+  const i=placed.findIndex(p=>p.color===color&&p.tip===tip);
+  if(i>=0){ heartGroup.remove(placed[i].group); placed.splice(i,1); }
+}
+function clearArrows(){ placed.forEach(p=>heartGroup.remove(p.group)); placed=[]; selected=null; }
+function setDir(rec,dirKey){ rec.dirKey=dirKey; orient(rec.group,dirByKey(dirKey).v); }
+function selectArrow(rec){ selected=rec; showRot(); }
+function highlight(){ placed.forEach(p=>{ const on=(p===selected); p.group.children.forEach(ch=>ch.scale.setScalar(on?1.18:1)); }); }
+
+/* ===== 보관함 ===== */
+function renderChips(){
+  const wrap=document.getElementById("chips"); wrap.innerHTML="";
+  const sub={green:"도선을 따라 흐르는 방향",blue:"자석에서 퍼지는 방향",red:"F = I × B 방향"};
+  const order=["green","green","blue","blue","red","red"];
+  const used={green:0,blue:0,red:0}; placed.forEach(p=>used[p.color]++);
+  const seen={green:0,blue:0,red:0};
+  order.forEach(color=>{
+    seen[color]++;
+    const isUsed=seen[color]<=used[color];
+    const el=document.createElement("div");
+    el.className="chip "+color+(isUsed?" used":"");
+    el.innerHTML='<span class="swatch"></span><span class="label">'+KOR[color]+' '+seen[color]+'<small>'+sub[color]+'</small></span>';
+    if(!isUsed) attachDrag(el,color);
+    wrap.appendChild(el);
+  });
+}
+
+/* ===== 드래그 → 꼭짓점 ===== */
+const ghost=document.getElementById("ghost");
+let dragColor=null;
+function attachDrag(el,color){
+  el.addEventListener("pointerdown",e=>{
+    e.preventDefault(); dragColor=color;
+    ghost.querySelector(".sw").style.background="#"+COLORS[color].toString(16).padStart(6,"0");
+    document.getElementById("ghostTxt").textContent=KOR[color];
+    ghost.style.display="flex"; moveGhost(e);
+    window.addEventListener("pointermove",onMove);
+    window.addEventListener("pointerup",onUp,{once:true});
+  });
+}
+function moveGhost(e){ ghost.style.left=(e.clientX+12)+"px"; ghost.style.top=(e.clientY-14)+"px"; }
+function onMove(e){ moveGhost(e); }
+function onUp(e){
+  window.removeEventListener("pointermove",onMove); ghost.style.display="none";
+  if(dragColor){ const tip=pickTip(e.clientX,e.clientY); if(tip) placeArrow(dragColor,tip,"+x"); }
+  dragColor=null;
+}
+const ray=new THREE.Raycaster();
+function pickTip(cx,cy){
+  const r=canvas.getBoundingClientRect();
+  const ndc=new THREE.Vector2(((cx-r.left)/r.width)*2-1,-((cy-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+  const hit=ray.intersectObjects([tipL,tipR],false);
+  if(hit.length) return hit[0].object===tipR?"R":"L";
+  const pr=toScreen(tipRPos.clone().applyMatrix4(heartGroup.matrixWorld));
+  const pl=toScreen(tipLPos.clone().applyMatrix4(heartGroup.matrixWorld));
+  const dR=Math.hypot(cx-pr.x,cy-pr.y), dL=Math.hypot(cx-pl.x,cy-pl.y);
+  return Math.min(dR,dL)<85 ? (dR<dL?"R":"L") : null;
+}
+function toScreen(v){ const p=v.clone().project(camera); const r=canvas.getBoundingClientRect();
+  return {x:(p.x*.5+.5)*r.width+r.left,y:(-p.y*.5+.5)*r.height+r.top}; }
+
+canvas.addEventListener("pointerdown",e=>{
+  const r=canvas.getBoundingClientRect();
+  const ndc=new THREE.Vector2(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(ndc,camera);
+  const ms=[]; placed.forEach(p=>p.group.children.forEach(ch=>{ch.userData.__rec=p; ms.push(ch);}));
+  const hit=ray.intersectObjects(ms,false);
+  if(hit.length) selectArrow(hit[0].object.userData.__rec);
+});
+
+/* ===== 방향 컨트롤 ===== */
+function showRot(){
+  const ctl=document.getElementById("rotctl"); ctl.classList.add("show");
+  resetRmConfirm();
+  const grid=document.getElementById("dirgrid"); grid.innerHTML="";
+  DIRS.forEach(d=>{
+    const b=document.createElement("button"); b.textContent=d.label; b.dataset.key=d.key;
+    b.onclick=()=>{ if(selected){ setDir(selected,d.key); refreshDir(); } };
+    grid.appendChild(b);
+  });
+  const cname={green:"전류(초록)",blue:"자기장(파랑)",red:"힘(빨강)"}[selected.color];
+  document.getElementById("whichLabel").innerHTML="<b>"+(selected.tip==="R"?"오른쪽":"왼쪽")+" 꼭짓점</b> · "+cname+" 방향 선택";
+  refreshDir();
+}
+function refreshDir(){ document.querySelectorAll("#dirgrid button").forEach(b=>b.classList.toggle("active",selected&&b.dataset.key===selected.dirKey)); }
+function hideRot(){ document.getElementById("rotctl").classList.remove("show"); resetRmConfirm(); }
+function resetRmConfirm(){
+  document.getElementById("rmConfirm").style.display="none";
+  document.getElementById("rmBtn").style.display="block";
+}
+document.getElementById("rmBtn").onclick=()=>{
+  /* 바로 빼지 않고 확인 단계를 보여줌 */
+  document.getElementById("rmBtn").style.display="none";
+  document.getElementById("rmConfirm").style.display="flex";
+};
+document.getElementById("rmNo").onclick=resetRmConfirm;
+document.getElementById("rmYes").onclick=()=>{
+  if(selected){ removeArrow(selected.color,selected.tip); selected=null; hideRot(); renderChips(); updateStatus(); }
+};
+
+function updateStatus(){
+  const n=placed.length;
+  document.getElementById("status").textContent = n>=6 ? "✓ 6개 배치 완료! '정답 확인'을 눌러보세요." : ("배치된 화살표: "+n+" / 6");
+}
+
+/* ===== 정답 ===== */
+function expected(){
+  const sI = prob.plusUp ? -1 : +1;      // 전류 y (+ 아래면 위로)
+  const sFr= prob.nUp ? +1 : -1;         // 오른쪽 자기장 x (N 위면 바깥=+x)
+  const I=new THREE.Vector3(0,sI,0);
+  const Br=new THREE.Vector3(sFr,0,0), Bl=new THREE.Vector3(-sFr,0,0);
+  const Fr=new THREE.Vector3().crossVectors(I,Br);
+  const Fl=new THREE.Vector3().crossVectors(I,Bl);
+  return {R:{green:I.clone(),blue:Br.clone(),red:Fr.clone()},
+          L:{green:I.clone(),blue:Bl.clone(),red:Fl.clone()}, Fr, Fl};
+}
+function vKey(v){ let b=null,bd=-2; DIRS.forEach(d=>{const dot=d.v.dot(v); if(dot>bd){bd=dot;b=d.key;}}); return b; }
+
+function checkAnswer(){
+  const need=[["green","R"],["blue","R"],["red","R"],["green","L"],["blue","L"],["red","L"]];
+  const box=document.getElementById("result");
+  const miss=need.filter(([c,t])=>!placed.find(p=>p.color===c&&p.tip===t));
+  if(miss.length){
+    box.className="result no show";
+    box.innerHTML="<h3>⚠️ 화살표가 부족해요</h3><div>좌·우 꼭짓점에 전류·자기장·힘을 각각 하나씩, 모두 6개를 놓아주세요.</div>";
+    return;
+  }
+  const e=expected();
+  let allOk=true; const wrong=[];
+  need.forEach(([c,t])=>{
+    const rec=placed.find(p=>p.color===c&&p.tip===t);
+    const want=vKey(e[t][c]);
+    if(rec.dirKey!==want){ allOk=false; wrong.push({c,t,want,got:rec.dirKey}); }
+  });
+
+  const ccw = (e.Fr.z<0); // 오른쪽 힘이 -z(들어감)이면 위에서 볼 때 반시계
+  box.className="result "+(allOk?"ok":"no")+" show";
+  const bExpl = prob.plusUp
+    ? "(+)극이 <b>위</b> → 전류는 도선을 따라 <b>아래(↓)</b>로 흐름"
+    : "(+)극이 <b>아래</b> → 전류는 도선을 따라 <b>위(↑)</b>로 흐름";
+  const mExpl = prob.nUp
+    ? "N극이 <b>위</b> → 자기장이 자석에서 바깥으로 (오른쪽 →, 왼쪽 ←)"
+    : "S극이 <b>위</b> → 자기장이 자석 안쪽으로 (오른쪽 ←, 왼쪽 →)";
+
+  let html;
+  if(!allOk){
+    html="<h3>❌ 다시 살펴봐요</h3>";
+    html+="<div class='wrong-box'><div class='wrong-title'>고쳐야 할 곳 "+wrong.length+"군데</div>";
+    html+=wrong.map(w=>{
+      const cn={green:"전류",blue:"자기장",red:"힘"}[w.c], tn=w.t==="R"?"오른쪽":"왼쪽";
+      return "<div class='wrong-item'><span class='spot'>"+tn+"</span>"+cn+
+        " → <span class='fix'>"+KEYLABEL[w.want]+"</span> 로 바꾸기</div>";
+    }).join("");
+    html+="</div>";
+    html+="<div style='margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap'>"+
+      "<span style='font-size:14px;font-weight:600'>다시 해 볼까요?</span>"+
+      "<button id='retryBtn' style='background:#eef4ff;border-color:#bcd2f5;color:#1e40af;font-weight:600;font-size:13px;padding:6px 14px;border-radius:8px'>🔁 다시 도전</button>"+
+      "<button id='retryNewBtn' style='background:#fffaf0;border-color:#f0d9a8;color:#92600c;font-weight:600;font-size:13px;padding:6px 14px;border-radius:8px'>🔀 새 문제로</button>"+
+      "</div>";
+    speakCheerUp();
+  }else{
+    html="<h3>✅ 정확해요!</h3><ul>"+
+      "<li><span class='step'>①</span> 전류: "+bExpl+"</li>"+
+      "<li><span class='step'>②</span> 자기장: "+mExpl+"</li>"+
+      "<li><span class='step'>③</span> 힘: <b>F = I × B</b> → 좌·우가 ⊙/⊗ 반대 → 회전!</li>"+
+      "<li><span class='step'>④</span> 회전: 위에서 볼 때 <b>"+(ccw?"반시계 방향":"시계 방향")+"</b></li></ul>";
+    html+="<div class='mini'>아래에서 실제 회전을 확인하세요. '새 문제'로 다시 연습할 수 있어요.</div>";
+    spinning=true; spinSpeed=(ccw?1:-1)*0.02;
+    const badge=document.getElementById("rotBadge"); badge.style.display="block";
+    badge.textContent=(ccw?"⟲ 반시계 회전":"⟳ 시계 회전")+" (위에서 본 기준)";
+    showReward();
+  }
+  box.innerHTML=html;
+  if(!allOk){
+    const rb=document.getElementById("retryBtn"); if(rb) rb.onclick=()=>{ box.className="result"; };
+    const rnb=document.getElementById("retryNewBtn"); if(rnb) rnb.onclick=newProblem;
+  }
+}
+
+/* ===== 보상 카드 + 폭죽 + 효과음 ===== */
+const overlay=document.getElementById("rewardOverlay");
+const fxCanvas=document.getElementById("fxCanvas");
+const fxCtx=fxCanvas.getContext("2d");
+let fxParticles=[], fxRunning=false, fxTimer=0;
+
+function showReward(){
+  overlay.classList.add("show");
+  sizeFx();
+  fxParticles=[]; fxRunning=true; fxTimer=0;
+  burst(); // 즉시 한 발
+  playFanfare();
+  fxLoop();
+}
+function hideReward(){ overlay.classList.remove("show"); fxRunning=false; fxParticles=[]; fxCtx&&fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height); }
+document.getElementById("rewardClose").onclick=hideReward;
+overlay.addEventListener("pointerdown",e=>{ if(e.target===overlay) hideReward(); });
+
+function sizeFx(){ fxCanvas.width=window.innerWidth; fxCanvas.height=window.innerHeight; }
+window.addEventListener("resize",()=>{ if(overlay.classList.contains("show")) sizeFx(); });
+
+const FX_COLORS=["#ffd24a","#ffb01f","#ff6b6b","#5ad1a5","#5aa9ff","#c77dff","#fff3c4"];
+function burst(){
+  const cx=fxCanvas.width*(0.2+Math.random()*0.6);
+  const cy=fxCanvas.height*(0.2+Math.random()*0.35);
+  const n=46+Math.floor(Math.random()*20);
+  const col=FX_COLORS[Math.floor(Math.random()*FX_COLORS.length)];
+  for(let i=0;i<n;i++){
+    const a=(Math.PI*2*i)/n + Math.random()*0.2;
+    const sp=2.6+Math.random()*4.4;
+    fxParticles.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-1,
+      life:1,clr:Math.random()<0.3?FX_COLORS[Math.floor(Math.random()*FX_COLORS.length)]:col,
+      size:2+Math.random()*2.5});
+  }
+}
+function fxLoop(){
+  if(!fxRunning) return;
+  requestAnimationFrame(fxLoop);
+  fxTimer++;
+  if(fxTimer%26===0 && fxTimer<170) burst();   // 연속 폭죽
+  fxCtx.clearRect(0,0,fxCanvas.width,fxCanvas.height);
+  fxParticles.forEach(p=>{
+    p.vy+=0.06; p.vx*=0.99; p.vy*=0.99;
+    p.x+=p.vx; p.y+=p.vy; p.life-=0.012;
+    fxCtx.globalAlpha=Math.max(p.life,0);
+    fxCtx.fillStyle=p.clr;
+    fxCtx.beginPath(); fxCtx.arc(p.x,p.y,p.size,0,Math.PI*2); fxCtx.fill();
+  });
+  fxCtx.globalAlpha=1;
+  fxParticles=fxParticles.filter(p=>p.life>0 && p.y<fxCanvas.height+20);
+}
+
+/* 효과음: WebAudio로 팡파레 + 폭죽 펑 */
+let audioCtx=null;
+function playFanfare(){
+  speakWow();
+  try{
+    audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    const t0=audioCtx.currentTime;
+    const notes=[523.25,659.25,783.99,1046.5]; // C E G C — 상승 팡파레
+    notes.forEach((f,i)=>tone(f,t0+i*0.12,0.18,"triangle",0.22));
+    // 폭죽 '펑' 노이즈
+    noisePop(t0+0.15); noisePop(t0+0.55); noisePop(t0+0.95);
+  }catch(e){}
+}
+/* 영어 "Wow!" 음성 */
+function speakWow(){ speakEN("Wow!", 0.85, 1.3); }
+/* 오답 음성 "Again! Cheer up!" */
+function speakCheerUp(){ speakEN("Again! Cheer up!", 0.95, 1.1); }
+function speakEN(text, rate, pitch){
+  try{
+    if(!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang="en-US"; u.rate=rate; u.pitch=pitch; u.volume=1;
+    const pick=()=>{
+      const vs=window.speechSynthesis.getVoices();
+      const en=vs.find(v=>/en[-_]US/i.test(v.lang)) || vs.find(v=>/^en/i.test(v.lang));
+      if(en) u.voice=en;
+      window.speechSynthesis.speak(u);
+    };
+    if(window.speechSynthesis.getVoices().length) pick();
+    else window.speechSynthesis.onvoiceschanged=pick;
+  }catch(e){}
+}
+function tone(freq,start,dur,type,vol){
+  const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+  o.type=type; o.frequency.value=freq;
+  g.gain.setValueAtTime(0,start);
+  g.gain.linearRampToValueAtTime(vol,start+0.02);
+  g.gain.exponentialRampToValueAtTime(0.001,start+dur);
+  o.connect(g).connect(audioCtx.destination); o.start(start); o.stop(start+dur+0.02);
+}
+function noisePop(start){
+  const len=Math.floor(audioCtx.sampleRate*0.18);
+  const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2);
+  const src=audioCtx.createBufferSource(); src.buffer=buf;
+  const g=audioCtx.createGain();
+  g.gain.setValueAtTime(0.35,start); g.gain.exponentialRampToValueAtTime(0.001,start+0.18);
+  const f=audioCtx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1800;
+  src.connect(f).connect(g).connect(audioCtx.destination); src.start(start);
+}
+
+/* ===== 루프 ===== */
+function resize(){ const r=canvas.getBoundingClientRect(); renderer.setSize(r.width,r.height,false); camera.aspect=r.width/r.height; camera.updateProjectionMatrix(); }
+window.addEventListener("resize",resize);
+function animate(){ requestAnimationFrame(animate);
+  if(spinning&&heartGroup) heartGroup.rotation.y+=spinSpeed;
+  highlight(); controls.update(); renderer.render(scene,camera);
+}
+
+document.getElementById("viewBtn").onclick=()=>{ camera.position.copy(HOME_CAM); controls.target.copy(HOME_TARGET); controls.update(); };
+document.getElementById("newBtn").onclick=newProblem;
+document.getElementById("checkBtn").onclick=checkAnswer;
+
+buildStack(); buildWire(); resize(); newProblem(); animate();
+})();
+</script>
+</body>
+</html>
