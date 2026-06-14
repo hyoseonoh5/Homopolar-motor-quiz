@@ -10,7 +10,14 @@
     --ink:#2b2b29; --muted:#7a786f; --line:#e3e0d6; --bg:#f7f5ef; --card:#fff;
   }
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--ink);overflow-x:hidden}
+  html{scrollbar-width:thin;scrollbar-color:#c2bdad #efece3}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:var(--bg);color:var(--ink);overflow-x:hidden;overflow-y:scroll}
+  ::-webkit-scrollbar{width:12px}
+  ::-webkit-scrollbar-track{background:#efece3}
+  ::-webkit-scrollbar-thumb{background:#c2bdad;border-radius:8px;border:3px solid #efece3}
+  ::-webkit-scrollbar-thumb:hover{background:#aaa492}
+  #scrollHint{position:fixed;right:5px;top:50%;transform:translateY(-50%);z-index:90;width:6px;height:84px;border-radius:6px;background:rgba(120,116,104,.30);display:none;pointer-events:none}
+  @media(max-width:880px){ #scrollHint{display:block} }
   .app{max-width:1120px;margin:0 auto;padding:14px}
   header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px}
   h1{font-size:18px;font-weight:600}
@@ -29,8 +36,8 @@
   @media(max-width:880px){ .layout{grid-template-columns:1fr} }
 
   .stage-wrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
-  #stage{display:block;width:100%;height:500px;touch-action:none}
-  @media(max-width:880px){ #stage{height:410px} }
+  #stage{display:block;width:100%;height:500px;touch-action:pan-y}
+  @media(max-width:880px){ #stage{height:360px} }
   .hint{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.82);backdrop-filter:blur(4px);border:1px solid var(--line);border-radius:9px;padding:6px 10px;font-size:12px;color:var(--muted);max-width:235px;line-height:1.5;pointer-events:none}
   .view-btn{position:absolute;right:12px;top:12px}
   .rot-badge{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:rgba(43,43,41,.9);color:#fff;border-radius:20px;padding:6px 16px;font-size:13px;font-weight:600;display:none}
@@ -58,7 +65,20 @@
 
   .rotctl{display:none}
   .rotctl.show{display:block}
+  .rotctl h2{display:flex;align-items:center;justify-content:space-between}
+  .rot-close{font-size:13px;padding:4px 10px;border-radius:7px;line-height:1}
   .rotctl .which{font-size:12px;margin-bottom:8px}
+  @media(max-width:880px){
+    .rotctl.show{position:fixed;left:0;right:0;bottom:0;z-index:130;margin:0;
+      border-radius:18px 18px 0 0;box-shadow:0 -10px 34px rgba(0,0,0,.22);
+      border:1px solid var(--line);border-bottom:none;
+      padding-bottom:calc(14px + env(safe-area-inset-bottom));
+      animation:sheetUp .22s ease}
+    .rotctl.show::before{content:"";position:absolute;top:7px;left:50%;transform:translateX(-50%);
+      width:42px;height:4px;border-radius:3px;background:#d8d4c8}
+    .rotctl .dirgrid button{padding:13px 4px;font-size:15px}
+  }
+  @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
   .dirgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
   .dirgrid button{padding:9px 4px;font-size:13px;font-weight:600}
   .dirgrid button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
@@ -154,7 +174,7 @@
       </div>
 
       <div class="panel rotctl" id="rotctl">
-        <h2>↻ 방향 돌리기</h2>
+        <h2>↻ 방향 돌리기 <button class="rot-close" id="rotClose">✕ 닫기</button></h2>
         <div class="which" id="whichLabel"></div>
         <div class="dirgrid" id="dirgrid"></div>
         <div class="rm-wrap">
@@ -171,6 +191,7 @@
   </div>
 </div>
 
+<div id="scrollHint"></div>
 <div class="ghost" id="ghost"><span class="sw"></span><span id="ghostTxt"></span></div>
 
 <div class="reward-overlay" id="rewardOverlay">
@@ -222,6 +243,10 @@ const controls=new THREE.OrbitControls(camera,renderer.domElement);
 controls.target.copy(HOME_TARGET);
 controls.enableDamping=true; controls.dampingFactor=0.08;
 controls.minDistance=4; controls.maxDistance=15; controls.maxPolarAngle=Math.PI*0.93;
+/* OrbitControls가 생성자에서 touchAction을 'none'으로 강제하므로 다시 풀어준다.
+   → 캔버스 위에서 세로 스와이프 = 페이지 스크롤, 가로 스와이프 = 시점 회전 */
+renderer.domElement.style.touchAction="pan-y";
+if(THREE.TOUCH){ controls.touches={ONE:THREE.TOUCH.ROTATE, TWO:THREE.TOUCH.DOLLY_ROTATE}; }
 
 scene.add(new THREE.AmbientLight(0xffffff,0.72));
 const kl=new THREE.DirectionalLight(0xffffff,0.85); kl.position.set(5,9,6); scene.add(kl);
@@ -465,9 +490,14 @@ function showRot(){
   const cname={green:"전류(초록)",blue:"자기장(파랑)",red:"힘(빨강)"}[selected.color];
   document.getElementById("whichLabel").innerHTML="<b>"+(selected.tip==="R"?"오른쪽":"왼쪽")+" 꼭짓점</b> · "+cname+" 방향 선택";
   refreshDir();
+  /* 데스크톱(넓은 화면)에서는 패널을 화면 안으로 부드럽게 스크롤.
+     모바일에서는 하단 고정 시트라 스크롤이 필요 없음 */
+  if(window.innerWidth>880){ try{ ctl.scrollIntoView({behavior:"smooth",block:"nearest"}); }catch(e){} }
 }
 function refreshDir(){ document.querySelectorAll("#dirgrid button").forEach(b=>b.classList.toggle("active",selected&&b.dataset.key===selected.dirKey)); }
+function closeRot(){ selected=null; hideRot(); }
 function hideRot(){ document.getElementById("rotctl").classList.remove("show"); resetRmConfirm(); }
+document.getElementById("rotClose").onclick=closeRot;
 function resetRmConfirm(){
   document.getElementById("rmConfirm").style.display="none";
   document.getElementById("rmBtn").style.display="block";
